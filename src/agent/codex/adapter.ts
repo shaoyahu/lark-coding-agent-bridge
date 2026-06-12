@@ -20,6 +20,7 @@ import { CodexJsonlTranslator, type CodexFinishReason } from './jsonl';
 
 export interface CodexAdapterOptions {
   binary: string;
+  launcherBinary?: string;
   profileStateDir: string;
   codexHome?: string;
   inheritCodexHome?: boolean;
@@ -36,7 +37,7 @@ export class CodexAdapter implements AgentAdapter {
   readonly id = 'codex';
   readonly displayName = 'Codex CLI';
 
-  private readonly binary: string;
+  private readonly launcherBinary: string;
   private readonly profileStateDir: string;
   private readonly codexHome: string | undefined;
   private readonly inheritCodexHome: boolean;
@@ -48,7 +49,7 @@ export class CodexAdapter implements AgentAdapter {
   private botIdentity: AgentBotIdentity | undefined;
 
   constructor(opts: CodexAdapterOptions) {
-    this.binary = opts.binary;
+    this.launcherBinary = opts.launcherBinary ?? 'aiden';
     this.profileStateDir = opts.profileStateDir;
     this.codexHome = opts.codexHome;
     this.inheritCodexHome = opts.inheritCodexHome !== false;
@@ -71,8 +72,9 @@ export class CodexAdapter implements AgentAdapter {
     return checkAgentAvailability({
       agentId: 'codex',
       agentName: 'Codex CLI',
-      command: this.binary,
-      binaryPath: this.binary,
+      command: this.launcherBinary,
+      binaryPath: this.launcherBinary,
+      args: ['x', 'codex', '--help'],
     });
   }
 
@@ -107,7 +109,7 @@ export class CodexAdapter implements AgentAdapter {
     } else if (!this.inheritCodexHome) {
       envOverrides.CODEX_HOME = join(this.profileStateDir, 'codex-home');
     }
-    const child = spawnProcess(this.binary, args, {
+    const child = spawnProcess(this.launcherBinary, ['x', 'codex', ...args], {
       cwd: opts.cwd,
       env: mergeProcessEnv(process.env, envOverrides),
       stdio: ['pipe', 'pipe', 'pipe'],

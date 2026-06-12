@@ -1,4 +1,4 @@
-import { mkdtemp, rm } from 'node:fs/promises';
+import { chmod, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -14,8 +14,10 @@ describe('CodexAdapter prepareRun', () => {
 
   it('allows a run when the configured Codex binary returns a version without stored metadata', async () => {
     const binary = await writeCodexBinary('codex 1.2.3');
+    const launcherBinary = await writeAidenLauncher();
     const adapter = new CodexAdapter({
       binary,
+      launcherBinary,
       profileStateDir: join(tmpdir(), 'codex-profile'),
     });
 
@@ -23,8 +25,10 @@ describe('CodexAdapter prepareRun', () => {
   });
 
   it('reports a preflight diagnostic when the configured Codex binary is missing', async () => {
+    const launcherBinary = join(tmpdir(), 'missing-aiden');
     const adapter = new CodexAdapter({
       binary: join(tmpdir(), 'missing-codex'),
+      launcherBinary,
       profileStateDir: join(tmpdir(), 'codex-profile'),
     });
 
@@ -43,4 +47,25 @@ async function writeCodexBinary(version: string): Promise<string> {
   const dir = await mkdtemp(join(tmpdir(), 'codex-prepare-run-test-'));
   cleanups.push(() => rm(dir, { recursive: true, force: true }));
   return writeVersionExecutable(dir, 'codex', version);
+}
+
+async function writeAidenLauncher(): Promise<string> {
+  const dir = await mkdtemp(join(tmpdir(), 'aiden-prepare-run-test-'));
+  cleanups.push(() => rm(dir, { recursive: true, force: true }));
+  const file = join(dir, 'aiden');
+  await writeFile(
+    file,
+    [
+      `#!${process.execPath}`,
+      'if (process.argv.slice(2).join(" ") === "x codex --help") {',
+      '  console.log("Usage: aiden x codex [options]");',
+      '  process.exit(0);',
+      '}',
+      'console.error(`unexpected argv: ${process.argv.slice(2).join(" ")}`);',
+      'process.exit(1);',
+    ].join('\n'),
+    'utf8',
+  );
+  await chmod(file, 0o755);
+  return file;
 }

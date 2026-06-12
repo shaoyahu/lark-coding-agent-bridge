@@ -2,7 +2,7 @@ import { chmod, mkdtemp, readFile, realpath, rm, writeFile } from 'node:fs/promi
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { CodexAdapter } from '../../src/agent/codex/adapter.js';
+import { CodexAdapter, type CodexAdapterOptions } from '../../src/agent/codex/adapter.js';
 import { buildCodexArgs } from '../../src/agent/codex/argv.js';
 import type { AgentEvent } from '../../src/agent/types.js';
 
@@ -35,7 +35,7 @@ describe('CodexAdapter process contract', () => {
     );
   });
 
-  it('spawns a fresh JSON run with prompt on stdin and inherits the user Codex home by default', async () => {
+  it('spawns Codex through aiden x with prompt on stdin and inherits the user Codex home by default', async () => {
     process.env.CODEX_HOME = '/outer/codex-home';
     process.env.APP_SECRET = 'inherited-secret';
     const fake = await createFakeCodex({
@@ -48,8 +48,7 @@ describe('CodexAdapter process contract', () => {
     cleanup.push(fake.dir);
     const cwd = await realpath(fake.dir);
 
-    const run = new CodexAdapter({
-      binary: fake.path,
+    const run = codexAdapter(fake, {
       profileStateDir: fake.dir,
       sandbox: 'read-only',
     }).run({
@@ -67,7 +66,7 @@ describe('CodexAdapter process contract', () => {
     const record = await readRecord(fake.recordPath);
 
     expect(await realpath(record.cwd)).toBe(cwd);
-    expect(record.argv).toEqual(buildCodexArgs({ cwd, sandbox: 'read-only' }));
+    expect(record.argv).toEqual(wrappedCodexArgs({ cwd, sandbox: 'read-only' }));
     expect(record.argv).not.toContain('--ignore-user-config');
     expect(record.argv).toContain('--skip-git-repo-check');
     expect(record.argv).not.toContain('hello from lark');
@@ -97,8 +96,7 @@ describe('CodexAdapter process contract', () => {
     const larkCliConfigDir = join(rootDir, 'profiles', 'codex-dev', 'lark-cli');
     const larkCliSourceConfigFile = join(rootDir, 'profiles', 'codex-dev', 'lark-cli-source', 'config.json');
 
-    const run = new CodexAdapter({
-      binary: fake.path,
+    const run = codexAdapter(fake, {
       profileStateDir: fake.dir,
       larkChannel: {
         profile: 'codex-dev',
@@ -133,8 +131,7 @@ describe('CodexAdapter process contract', () => {
     });
     cleanup.push(fake.dir);
 
-    const run = new CodexAdapter({
-      binary: fake.path,
+    const run = codexAdapter(fake, {
       profileStateDir: fake.dir,
     }).run({
       runId: 'run-default-home',
@@ -155,8 +152,7 @@ describe('CodexAdapter process contract', () => {
     const cwd = await realpath(fake.dir);
     const image = join(fake.dir, 'image.png');
 
-    const run = new CodexAdapter({
-      binary: fake.path,
+    const run = codexAdapter(fake, {
       profileStateDir: fake.dir,
       sandbox: 'workspace-write',
     }).run({
@@ -172,7 +168,7 @@ describe('CodexAdapter process contract', () => {
     ]);
     const record = await readRecord(fake.recordPath);
     expect(record.argv).toEqual(
-      buildCodexArgs({
+      wrappedCodexArgs({
         cwd,
         sandbox: 'workspace-write',
         threadId: 'thread-old',
@@ -188,8 +184,7 @@ describe('CodexAdapter process contract', () => {
     cleanup.push(fake.dir);
     const cwd = await realpath(fake.dir);
 
-    const run = new CodexAdapter({
-      binary: fake.path,
+    const run = codexAdapter(fake, {
       profileStateDir: fake.dir,
       sandbox: 'danger-full-access',
     }).run({
@@ -201,7 +196,7 @@ describe('CodexAdapter process contract', () => {
 
     await collect(run.events);
     const record = await readRecord(fake.recordPath);
-    expect(record.argv).toEqual(buildCodexArgs({ cwd, sandbox: 'read-only' }));
+    expect(record.argv).toEqual(wrappedCodexArgs({ cwd, sandbox: 'read-only' }));
   });
 
   it('honors a profile-configured Codex home', async () => {
@@ -212,8 +207,7 @@ describe('CodexAdapter process contract', () => {
     const cwd = await realpath(fake.dir);
     const codexHome = join(fake.dir, 'custom-codex-home');
 
-    const run = new CodexAdapter({
-      binary: fake.path,
+    const run = codexAdapter(fake, {
       profileStateDir: fake.dir,
       codexHome,
     }).run({
@@ -234,8 +228,7 @@ describe('CodexAdapter process contract', () => {
     });
     cleanup.push(fake.dir);
 
-    const run = new CodexAdapter({
-      binary: fake.path,
+    const run = codexAdapter(fake, {
       profileStateDir: fake.dir,
       inheritCodexHome: false,
     }).run({
@@ -256,8 +249,7 @@ describe('CodexAdapter process contract', () => {
     cleanup.push(fake.dir);
     const cwd = await realpath(fake.dir);
 
-    const run = new CodexAdapter({
-      binary: fake.path,
+    const run = codexAdapter(fake, {
       profileStateDir: fake.dir,
       ignoreUserConfig: false,
       ignoreRules: false,
@@ -279,8 +271,7 @@ describe('CodexAdapter process contract', () => {
     });
     cleanup.push(fake.dir);
 
-    const run = new CodexAdapter({
-      binary: fake.path,
+    const run = codexAdapter(fake, {
       profileStateDir: fake.dir,
       ignoreUserConfig: true,
     }).run({
@@ -302,7 +293,7 @@ describe('CodexAdapter process contract', () => {
     });
     cleanup.push(fake.dir);
 
-    const run = new CodexAdapter({ binary: fake.path, profileStateDir: fake.dir }).run({
+    const run = codexAdapter(fake, { profileStateDir: fake.dir }).run({
       runId: 'run-fail',
       prompt: 'fail',
       cwd: await realpath(fake.dir),
@@ -332,7 +323,7 @@ describe('CodexAdapter process contract', () => {
     });
     cleanup.push(fake.dir);
 
-    const run = new CodexAdapter({ binary: fake.path, profileStateDir: fake.dir }).run({
+    const run = codexAdapter(fake, { profileStateDir: fake.dir }).run({
       runId: 'run-retry',
       prompt: 'retry',
       cwd: await realpath(fake.dir),
@@ -354,14 +345,14 @@ describe('CodexAdapter process contract', () => {
         exitCode: 1,
       });
       cleanup.push(fake.dir);
-      run = new CodexAdapter({ binary: fake.path, profileStateDir: fake.dir }).run({
+      run = codexAdapter(fake, { profileStateDir: fake.dir }).run({
         runId: 'run-missing',
         prompt: 'hi',
         cwd: await realpath(fake.dir),
       });
     } else {
       const missing = join(tmpdir(), `missing-codex-${Date.now()}`);
-      run = new CodexAdapter({ binary: missing, profileStateDir: tmpdir() }).run({
+      run = new CodexAdapter({ binary: missing, launcherBinary: missing, profileStateDir: tmpdir() }).run({
         runId: 'run-missing',
         prompt: 'hi',
         cwd: tmpdir(),
@@ -384,8 +375,7 @@ describe('CodexAdapter process contract', () => {
     });
     cleanup.push(fake.dir);
 
-    const run = new CodexAdapter({
-      binary: fake.path,
+    const run = codexAdapter(fake, {
       profileStateDir: fake.dir,
       stopGraceMs: 20,
     }).run({
@@ -422,6 +412,21 @@ async function collect(events: AsyncIterable<AgentEvent>): Promise<AgentEvent[]>
   const out: AgentEvent[] = [];
   for await (const event of events) out.push(event);
   return out;
+}
+
+function codexAdapter(
+  fake: FakeBinary,
+  opts: Omit<CodexAdapterOptions, 'binary' | 'launcherBinary'>,
+): CodexAdapter {
+  return new CodexAdapter({
+    binary: fake.path,
+    launcherBinary: fake.path,
+    ...opts,
+  });
+}
+
+function wrappedCodexArgs(input: Parameters<typeof buildCodexArgs>[0]): string[] {
+  return ['x', 'codex', ...buildCodexArgs(input)];
 }
 
 async function createFakeCodex(options: {

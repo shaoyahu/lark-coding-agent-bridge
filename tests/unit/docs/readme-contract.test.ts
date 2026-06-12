@@ -6,7 +6,7 @@ describe('README runtime contract', () => {
     const docs = await readDocs();
 
     for (const phrase of [
-      'per-profile service',
+      '每个 profile 有独立服务',
       'workspaces.default',
       '/invite user',
       '/remove user',
@@ -19,8 +19,6 @@ describe('README runtime contract', () => {
       'profile remove',
       '--purge --yes',
       '--include-secrets --yes',
-      'lark-cli identity policy',
-      'profile-local lark-cli directory',
       'lark-cli 身份策略',
       '当前 profile 的 lark-cli 目录',
       'pnpm test',
@@ -29,6 +27,20 @@ describe('README runtime contract', () => {
     ]) {
       expect(docs).toContain(phrase);
     }
+  });
+
+  it('documents lcb as the user-facing CLI command', async () => {
+    const docs = await readDocs();
+
+    expect(docs).toContain('npm i -g @shaoyahu/lcb');
+    expect(docs).toContain('lcb run');
+    expect(docs).toContain('lcb start');
+    expect(docs).toContain('lcb profile create');
+    expect(docs).not.toContain('npm i -g lark-channel-bridge');
+    expect(docs).not.toContain('npm i -g lcb');
+    expect(docs).not.toContain('pnpm add -g lark-channel-bridge');
+    expect(docs).not.toContain('pnpm add -g lcb');
+    expect(docs).not.toMatch(/lark-channel-bridge (run|start|stop|restart|status|unregister|migrate|ps|kill|profile|secrets|--help)\b/);
   });
 
   it('keeps CLI help aligned with profile-aware service and first-run workspace flags', async () => {
@@ -74,7 +86,6 @@ describe('README runtime contract', () => {
   it('documents cloud-doc comments as document-scoped instead of access-gated', async () => {
     const docs = await readDocs();
 
-    expect(docs).toContain('Cloud-doc comments are document-scoped');
     expect(docs).toContain('云文档评论按文档权限生效');
     expect(docs).not.toContain('comments.enabled');
     expect(docs).not.toContain('comments.rateLimit');
@@ -87,16 +98,11 @@ describe('README runtime contract', () => {
     expect(docs).toContain('"permissions"');
     expect(docs).toContain('"defaultAccess": "full"');
     expect(docs).toContain('"maxAccess": "full"');
-    expect(docs).toContain('legacy `sandbox`');
     expect(docs).toContain('旧版 `sandbox`');
     expect(docs).not.toContain('"sandbox"');
   });
 });
 
 async function readDocs(): Promise<string> {
-  const [en, zh] = await Promise.all([
-    readFile(new URL('../../../README.md', import.meta.url), 'utf8'),
-    readFile(new URL('../../../README.zh.md', import.meta.url), 'utf8'),
-  ]);
-  return `${en}\n${zh}`;
+  return readFile(new URL('../../../README.md', import.meta.url), 'utf8');
 }
