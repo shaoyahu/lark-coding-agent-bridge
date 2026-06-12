@@ -8,9 +8,10 @@
 
 把飞书 / Lark 消息和本地 Claude Code 或 Codex CLI 打通的轻量 bot。用一条命令启动，扫码绑定 PersonalAgent 应用，然后在飞书里和本机编程助手对话，让它读图、处理文件、改代码。
 
-[English README](./README.md)
 
 关于能实现的效果，详情可以阅读[飞书文档](https://larkcommunity.feishu.cn/docx/OaRIdFIRFoLM3xxTmKwcetHqn5e)
+
+> **命令手册**：所有飞书内斜杠命令、本机 `lcb` CLI 命令、示例和说明见 [COMMANDS.zh.md](./COMMANDS.zh.md)。
 
 ## 主要功能
 
@@ -26,15 +27,19 @@
 
 - Node.js **>= 20.12.0**
 - 本机至少安装并登录一个 agent：
-  - Claude Code：`claude`，安装说明：https://docs.anthropic.com/en/docs/claude-code/quickstart
-  - Codex profile 通过 Aiden X 运行：`aiden x codex`。需要保持 Codex CLI 可被 Aiden X 调起。
+  - Claude Code
+  - Codex
 - 一个飞书 / Lark PersonalAgent 应用。首次启动的扫码向导可以帮你创建并绑定。
 
 ## 安装
 
 ```bash
 npm i -g @shaoyahu/lcb
-# 或
+```
+
+或
+
+```
 pnpm add -g @shaoyahu/lcb
 ```
 
@@ -110,6 +115,8 @@ lcb status --profile codex
 ```
 
 ## 命令速查
+
+完整指令说明、示例和注意事项见 [COMMANDS.zh.md](./COMMANDS.zh.md)。
 
 ### 宿主 CLI
 
@@ -318,34 +325,9 @@ pnpm build
 
 `pnpm test` 包含 unit、integration 和 process-level adapter 测试。CI 在 macOS、Ubuntu、Windows 上执行 `pnpm install --frozen-lockfile`、`pnpm test`、`pnpm typecheck` 和 `pnpm build`。
 
-## 可选：遥测（Telemetry）
-
-默认情况下 bridge **不上报任何数据**：没有指标、没有日志离开你的机器，也不引入任何遥测依赖。下面这个钩子在你主动开启前完全是空操作。
-
-想接自己的监控时，用环境变量指向一个 default export（或导出 `createAdapter`）`AdapterFactory` 的模块：
-
-```bash
-LARK_CHANNEL_TELEMETRY_MODULE=your-telemetry-package lcb start
-```
-
-该模块会收到每一条 `log.*` 事件，以及错误 / 指标钩子，转发到任何你想要的地方。接口从包根导出：
-
-```ts
-import type { AdapterFactory, TelemetryAdapter, TelemetryEvent } from '@shaoyahu/lcb';
-
-const createAdapter: AdapterFactory = (meta) => ({
-  emit(event) {/* 上报事件 */},
-  recordError(err, ctx) {/* 上报异常 */},
-  recordMetric(name, value, tags) {/* 上报指标 */},
-  flush(timeoutMs) {/* 冲刷缓冲事件 */},
-});
-export default createAdapter;
-```
 
 模块不存在、工厂函数不合法、或者 adapter 抛错，都会降级为空操作——遥测永远不会阻止 bridge 启动，也不会打断日志。
 
 ## 许可
 
 [MIT](./LICENSE)
-
-<img src="./assets/feedback-group-qr.png" alt="飞书反馈群二维码" width="360">
